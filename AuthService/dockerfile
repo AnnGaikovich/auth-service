@@ -1,0 +1,31 @@
+# Build stage
+FROM maven:3.9.9-eclipse-temurin-21 AS builder
+WORKDIR /app
+
+# Копируем pom.xml и загружаем зависимости (кэшируем этот слой)
+COPY pom.xml .
+RUN mvn dependency:go-offline -B
+
+# Копируем исходный код и собираем приложение
+COPY src ./src
+RUN mvn clean package -DskipTests
+
+# Runtime stage
+FROM eclipse-temurin:21-jre-jammy
+WORKDIR /app
+
+# Создаем не-root пользователя для безопасности
+RUN groupadd -r spring && useradd -r -g spring spring
+USER spring
+
+# Копируем JAR из build stage
+COPY --from=builder /app/target/*.jar app.jar
+
+# Открываем порт
+EXPOSE 8080
+
+# Параметры JVM для оптимизации в контейнере
+ENV JAVA_OPTS="-Xmx512m -Xms256m -XX:+UseG1GC -XX:MaxRAMPercentage=75 -Djava.security.egd=file:/dev/./urandom"
+
+# Запуск приложения
+ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar /app/app.jar"]
