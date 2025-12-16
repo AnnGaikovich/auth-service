@@ -1,5 +1,6 @@
 package org.example.authservice.service;
 
+import jakarta.persistence.EntityNotFoundException;
 import lombok.extern.slf4j.Slf4j;
 import org.example.authservice.dto.*;
 import org.example.authservice.entity.UserCredentials;
@@ -62,7 +63,7 @@ public class AuthService {
         userRequest.setName(registerRequest.getName());
         userRequest.setSurname(registerRequest.getSurname());
         userRequest.setBirthDate(registerRequest.getBirthDate());
-        userRequest.setEmail(registerRequest.getLogin()); // Используем login как email
+        userRequest.setEmail(registerRequest.getLogin());
         userRequest.setActive(registerRequest.getActive());
 
         Long userId = userServiceClient.createUser(userRequest);
@@ -158,5 +159,36 @@ public class AuthService {
                 credentials.getUserId(),
                 credentials.getRole().name()
         );
+
     }
+
+    @Transactional
+    public void deleteCredentials(Long userId) {
+        log.info("Attempting to delete credentials for userId: {}", userId);
+
+        try {
+            log.info("Step 1: Deleting user from UserService for userId: {}", userId);
+            userServiceClient.deleteUser(userId);
+            log.info("Step 1 completed: User deleted from UserService for userId: {}", userId);
+        } catch (Exception e) {
+            log.error("Failed to delete user from UserService for userId: {}. Error: {}", userId, e.getMessage());
+            throw new BusinessRuleException("Failed to delete user from UserService: " + e.getMessage());
+        }
+
+        try {
+            log.info("Step 2: Deleting credentials from AuthService for userId: {}", userId);
+            UserCredentials credentials = userCredentialsRepository.findByUserId(userId)
+                    .orElseThrow(() -> new EntityNotFoundException(
+                            "User credentials not found for userId: " + userId));
+
+            userCredentialsRepository.delete(credentials);
+            log.info("Step 2 completed: Credentials deleted from AuthService for userId: {}", userId);
+
+        } catch (EntityNotFoundException e) {
+            log.warn("User credentials not found in AuthService for userId: {}, but user was deleted from UserService", userId);
+        }
+
+        log.info("User {} successfully deleted from both UserService and AuthService", userId);
+    }
+
 }

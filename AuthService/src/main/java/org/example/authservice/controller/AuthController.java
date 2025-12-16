@@ -7,12 +7,15 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.example.authservice.dto.*;
 import org.example.authservice.service.AuthService;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 @Slf4j
@@ -82,5 +85,45 @@ public class AuthController {
         log.debug("Token validation request");
         TokenValidationResponseDTO response = authService.validateToken(validationRequest);
         return ResponseEntity.ok(response);
+    }
+
+    @Operation(
+            summary = "Delete user credentials",
+            description = "Delete user credentials. Only accessible by ADMIN role."
+    )
+    @ApiResponses(value = {
+            @ApiResponse(
+                    responseCode = "204",
+                    description = "Credentials successfully deleted"
+            ),
+            @ApiResponse(
+                    responseCode = "403",
+                    description = "Access denied - ADMIN role required",
+                    content = @Content(schema = @Schema(implementation = ErrorResponseDTO.class))
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "User not found",
+                    content = @Content(schema = @Schema(implementation = ErrorResponseDTO.class))
+            )
+    })
+    @DeleteMapping("/credentials/{userId}")
+    @PreAuthorize("hasRole('ADMIN')") // Только ADMIN может удалять учетные данные
+    public ResponseEntity<Void> deleteCredentials(
+            @Parameter(description = "User ID", required = true, example = "123")
+            @PathVariable Long userId) {
+
+        log.info("Delete credentials request for userId: {} by ADMIN", userId);
+
+        try {
+            authService.deleteCredentials(userId);
+            return ResponseEntity.noContent().build();
+        } catch (EntityNotFoundException e) {
+            log.warn("User credentials not found for userId: {}", userId);
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+        } catch (Exception e) {
+            log.error("Error deleting credentials for userId: {}", userId, e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
     }
 }

@@ -1,5 +1,6 @@
 package org.example.authservice.dto;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
@@ -40,6 +41,7 @@ public class RegisterRequestDTO {
     @Schema(description = "User's birth date in YYYY-MM-DD format", example = "1990-01-15", requiredMode = Schema.RequiredMode.REQUIRED)
     @NotNull(message = "Birth date is mandatory")
     @Past(message = "Birth date must be in the past")
+    @JsonFormat(pattern = "yyyy-MM-dd")
     @DateTimeFormat(pattern = "yyyy-MM-dd")
     private LocalDate birthDate;
 

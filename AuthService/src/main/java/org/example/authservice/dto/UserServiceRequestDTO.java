@@ -8,7 +8,7 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Past;
 import lombok.Getter;
 import lombok.Setter;
-
+import org.springframework.format.annotation.DateTimeFormat;
 import java.io.Serializable;
 import java.time.LocalDate;
 
@@ -29,6 +29,7 @@ public class UserServiceRequestDTO implements Serializable {
     @NotNull(message = "Birth date is mandatory")
     @Past(message = "Birth date must be in the past")
     @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd")
+    @DateTimeFormat(pattern = "yyyy-MM-dd")
     private LocalDate birthDate;
 
     @Schema(description = "User's email address", example = "john.doe@example.com", requiredMode = Schema.RequiredMode.REQUIRED)
