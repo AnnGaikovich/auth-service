@@ -2,7 +2,7 @@ spring:
   profiles:
     active: local
   application:
-    name: ${APPLICATION_NAME:AuthService}
+    name: ${APPLICATION_NAME:auth-service}
   docker:
     compose:
       enabled: false
@@ -56,12 +56,19 @@ management:
       enabled: false
     diskspace:
       enabled: true
+    livenessState:
+      enabled: true
+    readinessState:
+      enabled: true
   endpoints:
     web:
       exposure:
-        include: health,info
+        include: health,info,metrics
+      base-path: /actuator
   endpoint:
     health:
+      probes:
+        enabled: true
       show-details: always
 
 # JWT Configuration
@@ -123,12 +130,19 @@ management:
   health:
     ldap:
       enabled: false
+    livenessState:
+      enabled: true
+    readinessState:
+      enabled: true
   endpoints:
     web:
       exposure:
-        include: health,info
+        include: health,info,metrics
+      base-path: /actuator
   endpoint:
     health:
+      probes:
+        enabled: true
       show-details: always
 
 app:
@@ -143,6 +157,66 @@ app:
 
 server:
   port: ${SERVER_PORT:8082}
+
+logging:
+  level:
+    org.example.authservice: INFO
+
+---
+# Kubernetes Profile
+spring:
+  config:
+    activate:
+      on-profile: kubernetes
+  application:
+    name: auth-service
+  datasource:
+    url: jdbc:postgresql://postgres-service:5432/auth_service_db
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:123456}
+  data:
+    redis:
+      host: redis-service
+      port: 6379
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration
+  cloud:
+    kubernetes:
+      discovery:
+        enabled: false
+      config:
+        enabled: false
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+      base-path: /actuator
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: always
+  health:
+    livenessState:
+      enabled: true
+    readinessState:
+      enabled: true
+
+app:
+  jwt:
+    public-key: file:/app/keys/public.pem
+    private-key: file:/app/keys/private.pem
+    expiration: 3600000
+    refresh-expiration: 604800000
+  user-service:
+    url: http://user-service:80
+    api-key: ${USER_SERVICE_API_KEY:internal-auth-key-12345}
+
+server:
+  port: 8082
 
 logging:
   level:

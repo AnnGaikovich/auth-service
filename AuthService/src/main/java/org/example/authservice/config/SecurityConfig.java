@@ -37,7 +37,8 @@ public class SecurityConfig {
                                 "/api/v1/auth/refresh",
                                 "/swagger-ui/**",
                                 "/v3/api-docs/**",
-                                "/actuator/health"
+                                "/actuator/health",
+                                "/actuator/health/**"
                         ).permitAll()
 
                         // Delete credentials endpoint requires ADMIN role
