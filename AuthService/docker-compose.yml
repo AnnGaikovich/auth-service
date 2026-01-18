@@ -1,0 +1,44 @@
+version: '3.8'
+
+services:
+  auth-db:
+    image: postgres:15-alpine
+    container_name: auth-service-postgres
+    environment:
+      POSTGRES_DB: auth_service_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: 123456
+    ports:
+      - "5435:5432"
+    volumes:
+      - postgres_auth_data:/var/lib/postgresql/data
+    networks:
+      - microservices-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  auth-service:
+    build: .
+    container_name: auth-service-application
+    ports:
+      - "8082:8082"
+    depends_on:
+      auth-db:
+        condition: service_healthy
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - USER_SERVICE_API_KEY=internal-auth-key-12345
+    volumes:
+      - ./src/main/resources/keys:/app/keys
+    networks:
+      - microservices-network
+
+volumes:
+  postgres_auth_data:
+
+networks:
+  microservices-network:
+    driver: bridge
