@@ -1,0 +1,259 @@
+spring:
+  profiles:
+    active: local
+  application:
+    name: ${APPLICATION_NAME:auth-service}
+  docker:
+    compose:
+      enabled: false
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui/index.html
+    enabled: true
+
+---
+# Local Profile (for development)
+spring:
+  config:
+    activate:
+      on-profile: local
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/auth_service_db}
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:123456}
+    driver-class-name: ${DB_DRIVER:org.postgresql.Driver}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        dialect: ${DB_DIALECT:org.hibernate.dialect.PostgreSQLDialect}
+        show_sql: ${SHOW_SQL:false}
+        format_sql: ${FORMAT_SQL:true}
+    show-sql: ${SHOW_SQL:false}
+  liquibase:
+    change-log: ${LIQUIBASE_CHANGE_LOG:classpath:/db/changelog/db.changelog-master.yaml}
+    enabled: ${LIQUIBASE_ENABLED:true}
+
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      password:
+      timeout: 60000
+
+  cache:
+    type: redis
+    redis:
+      time-to-live: 600000  # 10 min
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+      base-path: /actuator
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: always
+  health:
+    livenessState:
+      enabled: true
+    readinessState:
+      enabled: true
+  security:
+    enabled: false
+  metrics:
+    tags:
+      application: auth-service
+  tracing:
+    enabled: true
+    sampling:
+      probability: 1.0
+    propagation:
+      type: w3c
+
+#Micrometer for Prometheus
+micrometer:
+  tracing:
+    enabled: true
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+
+# JWT Configuration
+app:
+  jwt:
+    public-key: classpath:keys/public.pem
+    private-key: classpath:keys/private.pem
+    expiration: 3600000 # 1 hour
+    refresh-expiration: 604800000 # 7 days
+  user-service:
+    url: http://localhost:8080
+    api-key: ${USER_SERVICE_API_KEY:internal-auth-key-12345}
+
+server:
+  port: ${SERVER_PORT:8082}
+
+logging:
+  level:
+    org.example.authservice: DEBUG
+    org.hibernate.SQL: ${LOG_SQL:DEBUG}
+    org.springframework.web: DEBUG
+  pattern:
+    level: "%5p [auth-service,%X{traceId:-},%X{spanId:-}]"
+
+
+---
+# Docker Profile (for containerization)
+spring:
+  config:
+    activate:
+      on-profile: docker
+  datasource:
+    url:  ${DB_URL:jdbc:postgresql://auth-db:5432/auth_service_db}
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:123456}
+    driver-class-name: ${DB_DRIVER:org.postgresql.Driver}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        dialect: ${DB_DIALECT:org.hibernate.dialect.PostgreSQLDialect}
+        show_sql: ${SHOW_SQL:false}
+        format_sql: ${FORMAT_SQL:true}
+    show-sql: ${SHOW_SQL:false}
+  liquibase:
+    change-log: ${LIQUIBASE_CHANGE_LOG:classpath:/db/changelog/db.changelog-master.yaml}
+    enabled: ${LIQUIBASE_ENABLED:true}
+
+  data:
+    redis:
+      host: redis
+      port: 6379
+      password:
+      timeout: 60000
+
+  cache:
+    type: redis
+    redis:
+      time-to-live: 600000 # 10 min
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus  # Добавлен prometheus
+      base-path: /actuator
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: always
+  health:
+    livenessState:
+      enabled: true
+    readinessState:
+      enabled: true
+  metrics:
+    tags:
+      application: user-service
+  tracing:
+    enabled: true
+    sampling:
+      probability: 1.0
+    propagation:
+      type: w3c
+
+#Micrometer for Prometheus
+micrometer:
+  tracing:
+    enabled: true
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+
+app:
+  jwt:
+    public-key: file:/app/keys/public.pem
+    private-key: file:/app/keys/private.pem
+    expiration: 3600000 # 1 hour
+    refresh-expiration: 604800000 # 7 days
+  user-service:
+    url: ${USER_SERVICE_URL:http://localhost:8080}
+    api-key: ${USER_SERVICE_API_KEY:internal-auth-key-12345}
+
+server:
+  port: ${SERVER_PORT:8082}
+
+logging:
+  level:
+    org.example.authservice: INFO
+
+---
+# Kubernetes Profile
+spring:
+  config:
+    activate:
+      on-profile: kubernetes
+  application:
+    name: auth-service
+  datasource:
+    url: jdbc:postgresql://postgres-service:5432/auth_service_db
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:123456}
+  data:
+    redis:
+      host: redis-service
+      port: 6379
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration
+  cloud:
+    kubernetes:
+      discovery:
+        enabled: false
+      config:
+        enabled: false
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+      base-path: /actuator
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: always
+  health:
+    livenessState:
+      enabled: true
+    readinessState:
+      enabled: true
+
+app:
+  jwt:
+    public-key: file:/app/keys/public.pem
+    private-key: file:/app/keys/private.pem
+    expiration: 3600000
+    refresh-expiration: 604800000
+  user-service:
+    url: http://user-service:80
+    api-key: ${USER_SERVICE_API_KEY:internal-auth-key-12345}
+
+server:
+  port: 8082
+
+logging:
+  level:
+    org.example.authservice: INFO
